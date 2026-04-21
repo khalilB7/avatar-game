@@ -1,187 +1,169 @@
 #include <SDL.h>
 #include <SDL_image.h>
-#include <SDL_ttf.h>  // Include SDL_ttf for text rendering
+#include <SDL_ttf.h>
 #include <stdio.h>
 #include "hero.h"
 
-#define MAX_PLAYERS 2  // Maximum number of players
+#define MAX_PLAYERS 2
 
-int main() {
+int main(void) {
+
     SDL_Init(SDL_INIT_VIDEO);
-    TTF_Init();  // Initialize SDL_ttf
+    TTF_Init();
+    IMG_Init(IMG_INIT_PNG);
 
-    SDL_Window* window = SDL_CreateWindow("Hero Game",
+    SDL_Window *window = SDL_CreateWindow(
+        "Hero Game",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        800, 600, SDL_WINDOW_SHOWN);
+        SCREEN_WIDTH, SCREEN_HEIGHT, 0);
 
-    SDL_Surface* screen = SDL_GetWindowSurface(window);
+    SDL_Surface *screen = SDL_GetWindowSurface(window);
 
-    // Load font for text rendering
-    TTF_Font* font = TTF_OpenFont("/usr/share/fonts/truetype/liberation2/LiberationSerif-BoldItalic.ttf", 24);  // Adjust font path and size as needed
-    if (font == NULL) {
-        printf("Failed to load font! SDL_ttf Error: %s\n", TTF_GetError());
-        return 1;  // Exit if font is not loaded
-    }
+    TTF_Font *font = TTF_OpenFont(
+        "/usr/share/fonts/truetype/malayalam/Rachana-Bold.ttf", 24);
 
-    Hero players[MAX_PLAYERS];  // Array to hold multiple players
-    int numPlayers = 1;  // Start with 1 player
+    Hero players[MAX_PLAYERS];
+    int  numPlayers = 1;
 
-    // Initialize the first player
     initializePlayer(&players[0], 1);
 
-    SDL_Event event;
+    SDL_Event e;
     int running = 1;
 
     while (running) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT)
+
+        // ---- Events --------------------------------------------------------
+        while (SDL_PollEvent(&e)) {
+
+            if (e.type == SDL_QUIT)
                 running = 0;
 
-            // Handle keypresses for movement, actions, etc.
-            if (event.type == SDL_KEYDOWN) {
-                switch (event.key.keysym.sym) {
-                    // Player 1 controls (Arrow keys)
-                    case SDLK_LEFT:
-                        players[0].dir = DIR_LEFT;
-                        players[0].state = STATE_WALK;
-                        break;
+            if (e.type == SDL_KEYDOWN) {
 
-                    case SDLK_RIGHT:
-                        players[0].dir = DIR_RIGHT;
-                        players[0].state = STATE_WALK;
-                        break;
+                switch (e.key.keysym.sym) {
 
-                    case SDLK_UP:
-                        players[0].dir = DIR_UP;
-                        players[0].state = STATE_WALK;
-                        break;
-
-                    case SDLK_DOWN:
-                        players[0].dir = DIR_DOWN;
-                        players[0].state = STATE_WALK;
-                        break;
-
-                    case SDLK_c:
-                        players[0].state = STATE_DASH;
-                        players[0].dashTime = 10;
-                        break;
-
-                    case SDLK_SPACE:
-                        players[0].state = STATE_JUMP;
-                        players[0].jumpTime = 10;
-                        break;
-
-                    // Player 2 controls (WASD keys)
-                    case SDLK_a:  // Move player 2 left
-                        players[1].dir = DIR_LEFT;
-                        players[1].state = STATE_WALK;
-                        break;
-
-                    case SDLK_d:  // Move player 2 right
-                        players[1].dir = DIR_RIGHT;
-                        players[1].state = STATE_WALK;
-                        break;
-
-                    case SDLK_w:  // Move player 2 up
-                        players[1].dir = DIR_UP;
-                        players[1].state = STATE_WALK;
-                        break;
-
-                    case SDLK_s:  // Move player 2 down
-                        players[1].dir = DIR_DOWN;
-                        players[1].state = STATE_WALK;
-                        break;
-
-                    case SDLK_n:  // Player 2 dash
-                        players[1].state = STATE_DASH;
-                        players[1].dashTime = 10;
-                        break;
-
-                    case SDLK_m:  // Player 2 jump
-                        players[1].state = STATE_JUMP;
-                        players[1].jumpTime = 10;
-                        break;
-
-                    case SDLK_p:  // Add another character when "P" is pressed
-                        if (numPlayers < MAX_PLAYERS) {
-                            initializePlayer(&players[numPlayers], numPlayers + 1);  // Initialize new player
-                            numPlayers++;
+                    // Add player 2
+                    case SDLK_p:
+                        if (numPlayers < 2) {
+                            initializePlayer(&players[1], 2);
+                            numPlayers = 2;
                         }
                         break;
-                }
-            }
 
-            // Check for mouse click (clicking on the player)
-            if (event.type == SDL_MOUSEBUTTONDOWN) {
-                int mouseX, mouseY;
-                SDL_GetMouseState(&mouseX, &mouseY);
+                    // Player 1 actions
+                    case SDLK_k:
+                        shoot(&players[0]);
+                        break;
+                    case SDLK_m:
+                        if (!players[0].dead) {
+                            players[0].state     = STATE_DASH;
+                            players[0].maxFrames = FRAMES_DASH;
+                            players[0].dashTime  = 10;
+                        }
+                        break;
+                    case SDLK_n:
+                        if (!players[0].dead) {
+                            players[0].state     = STATE_JUMP;
+                            players[0].maxFrames = FRAMES_JUMP;
+                            players[0].jumpTime  = 20;
+                        }
+                        break;
 
-                // Check if the mouse click is within the first player's bounds
-                if (mouseX >= players[0].posHero.x && mouseX <= players[0].posHero.x + players[0].frameWidth &&
-                    mouseY >= players[0].posHero.y && mouseY <= players[0].posHero.y + players[0].frameHeight) {
-                    takeDamage(&players[0], 1);  // Each click reduces 1 life for the first player
-                }
+                    // Player 2 actions
+                    case SDLK_l:
+                        if (numPlayers > 1) shoot(&players[1]);
+                        break;
+                    case SDLK_c:
+                        if (numPlayers > 1 && !players[1].dead) {
+                            players[1].state     = STATE_DASH;
+                            players[1].maxFrames = FRAMES_DASH;
+                            players[1].dashTime  = 10;
+                        }
+                        break;
+                    case SDLK_SPACE:
+                        if (numPlayers > 1 && !players[1].dead) {
+                            players[1].state     = STATE_JUMP;
+                            players[1].maxFrames = FRAMES_JUMP;
+                            players[1].jumpTime  = 20;
+                        }
+                        break;
 
-                // Check if the mouse click is within the second player's bounds
-                if (numPlayers > 1 && mouseX >= players[1].posHero.x && mouseX <= players[1].posHero.x + players[1].frameWidth &&
-                    mouseY >= players[1].posHero.y && mouseY <= players[1].posHero.y + players[1].frameHeight) {
-                    takeDamage(&players[1], 1);  // Each click reduces 1 life for the second player
-                }
-            }
-
-            if (event.type == SDL_KEYUP) {
-                if (event.key.keysym.sym == SDLK_LEFT || event.key.keysym.sym == SDLK_RIGHT || event.key.keysym.sym == SDLK_UP || event.key.keysym.sym == SDLK_DOWN) {
-                    players[0].state = STATE_IDLE;
-                }
-
-                // Player 2 Keyup for movement
-                if (event.key.keysym.sym == SDLK_a || event.key.keysym.sym == SDLK_d || event.key.keysym.sym == SDLK_w || event.key.keysym.sym == SDLK_s) {
-                    players[1].state = STATE_IDLE;
+                    default: break;
                 }
             }
         }
 
-        // Move both players
-        moveHero(&players[0]);
+        // ---- Keyboard state (held keys) ------------------------------------
+        const Uint8 *keys = SDL_GetKeyboardState(NULL);
+
+        // Player 1 — arrow keys; dead players ignore input
+        if (!players[0].dead) {
+            players[0].moveLeft  = keys[SDL_SCANCODE_LEFT];
+            players[0].moveRight = keys[SDL_SCANCODE_RIGHT];
+            players[0].moveUp    = keys[SDL_SCANCODE_UP];
+            players[0].moveDown  = keys[SDL_SCANCODE_DOWN];
+        } else {
+            players[0].moveLeft = players[0].moveRight =
+            players[0].moveUp   = players[0].moveDown  = 0;
+        }
+
+        // Player 2 — WASD; dead players ignore input
         if (numPlayers > 1) {
-            moveHero(&players[1]);
+            if (!players[1].dead) {
+                players[1].moveLeft  = keys[SDL_SCANCODE_A];
+                players[1].moveRight = keys[SDL_SCANCODE_D];
+                players[1].moveUp    = keys[SDL_SCANCODE_W];
+                players[1].moveDown  = keys[SDL_SCANCODE_S];
+            } else {
+                players[1].moveLeft = players[1].moveRight =
+                players[1].moveUp   = players[1].moveDown  = 0;
+            }
         }
 
-        // Boundary check to prevent characters from going off screen
-        if (players[0].posHero.x < 0) players[0].posHero.x = 0;
-        if (players[0].posHero.x > 800 - players[0].frameWidth) players[0].posHero.x = 800 - players[0].frameWidth;
-        if (players[0].posHero.y < 0) players[0].posHero.y = 0;
-        if (players[0].posHero.y > 600 - players[0].frameHeight) players[0].posHero.y = 600 - players[0].frameHeight;
-
-        if (numPlayers > 1) {
-            if (players[1].posHero.x < 0) players[1].posHero.x = 0;
-            if (players[1].posHero.x > 800 - players[1].frameWidth) players[1].posHero.x = 800 - players[1].frameWidth;
-            if (players[1].posHero.y < 0) players[1].posHero.y = 0;
-            if (players[1].posHero.y > 600 - players[1].frameHeight) players[1].posHero.y = 600 - players[1].frameHeight;
+        // ---- Update --------------------------------------------------------
+        for (int i = 0; i < numPlayers; i++) {
+            moveHero(&players[i]);
+            updateBullets(&players[i]);
+            updateScore(&players[i]);
         }
 
-        // Clear the screen
+        // NOTE: no friendly fire — players do NOT damage each other.
+        // checkBulletHit is reserved for player vs enemy (added by colleague).
+
+        // ---- Draw ----------------------------------------------------------
         SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 0, 0, 0));
 
-        // Render both players
-        showPlayer(screen, &players[0]);
-        if (numPlayers > 1) {
-            showPlayer(screen, &players[1]);
+        for (int i = 0; i < numPlayers; i++) {
+            showPlayer(screen, &players[i]);
+            drawBullets(&players[i], screen);
+            drawHearts(&players[i], screen, font);
+            drawScore(&players[i], screen, font);
         }
 
-        // Draw health for both players
-        drawHealth(&players[0], screen, font, (SDL_Color){255, 255, 255});
-        if (numPlayers > 1) {
-            drawHealth(&players[1], screen, font, (SDL_Color){255, 255, 255});
+        // Game-over overlay
+        int allDead = 1;
+        for (int i = 0; i < numPlayers; i++)
+            if (!players[i].dead) { allDead = 0; break; }
+
+        if ((numPlayers == 1 && players[0].dead) ||
+            (numPlayers == 2 && allDead)) {
+
+            SDL_Color red = {255, 0, 0, 255};
+            SDL_Surface *msg = TTF_RenderText_Solid(font, "GAME OVER", red);
+            SDL_Rect pos = {(SCREEN_WIDTH - msg->w) / 2,
+                            (SCREEN_HEIGHT - msg->h) / 2, 0, 0};
+            SDL_BlitSurface(msg, NULL, screen, &pos);
+            SDL_FreeSurface(msg);
         }
 
         SDL_UpdateWindowSurface(window);
-
-        SDL_Delay(16);
+        SDL_Delay(16);   // ~60 fps
     }
 
+    TTF_CloseFont(font);
+    IMG_Quit();
     SDL_DestroyWindow(window);
-    TTF_Quit();  // Quit SDL_ttf
-    SDL_Quit();  // Quit SDL
+    TTF_Quit();
+    SDL_Quit();
     return 0;
 }
