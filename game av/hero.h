@@ -3,6 +3,7 @@
 
 #include <SDL.h>
 #include <stdbool.h>
+#include <SDL_ttf.h>
 
 // Direction
 typedef enum { DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT } Direction;
@@ -22,6 +23,7 @@ typedef struct {
     char name[50];
 
     int maxHP, currentHP;
+    int health; // Track the number of hits the player can take
 
     SDL_Surface* spriteSheetRight;
     SDL_Surface* spriteSheetLeft;
@@ -45,16 +47,16 @@ typedef struct {
     int frameTimer;
 
     // 🔥 HEALTH SYSTEM
-    int lives;      // 3 segments
+    int lives;      // 3 segments (3 health points)
     int hurtTimer;
     int dead;
 
 } Hero;
 
-void initializePlayer(Hero *hero);
+void initializePlayer(Hero *hero, int id);
 void showPlayer(SDL_Surface* screen, Hero *hero);
 void moveHero(Hero *hero);
 void takeDamage(Hero *hero, int damage);
-void drawHealth(Hero *hero, SDL_Surface *screen);
+void drawHealth(Hero *hero, SDL_Surface *screen, TTF_Font *font, SDL_Color color);
 
 #endif
