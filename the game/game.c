@@ -3,30 +3,27 @@
 
 int initGame(Game *g, SDL_Renderer *renderer)
 {
-    g->background = IMG_LoadTexture(renderer,
-                        "/home/khalil/the game/images/background.png");
-
+    g->background = IMG_LoadTexture(renderer, "/home/khalil/op/avatar-game-khalilB7-version2/strengh and wisdom/avatar-game-khalilB7-version2/the game/images/background.png");
     if (g->background) {
         SDL_QueryTexture(g->background, NULL, NULL, &g->bg_w, &g->bg_h);
     } else {
-        g->bg_w = 800;
-        g->bg_h = 600;
+        g->bg_w = 1600;
+        g->bg_h =  600;
     }
 
     g->camera = (SDL_Rect){0, 0, 800, 600};
 
-    g->nbPlatforms = 1;
-    g->platforms[0].rect    = (SDL_Rect){400, 400, 100, 20};
-    g->platforms[0].type    = 0;
-    g->platforms[0].texture = NULL;
+    g->nbPlatforms           = 1;
+    g->platforms[0].rect     = (SDL_Rect){400, 400, 100, 20};
+    g->platforms[0].type     = 0;
+    g->platforms[0].texture  = NULL;
 
     g->startTime = SDL_GetTicks();
-    g->font = TTF_OpenFont("/home/khalil/the game/images/arial.ttf", 20);
+    g->font      = TTF_OpenFont("images/arial.ttf", 20);
 
     return 1;
 }
 
-/* Camera follows a given world rectangle (typically hero P1) */
 void updateGame(Game *g, int fx, int fy, int fw, int fh)
 {
     g->camera.x = fx + fw / 2 - g->camera.w / 2;
@@ -40,7 +37,6 @@ void updateGame(Game *g, int fx, int fy, int fw, int fh)
 
 void renderGame(Game *g, SDL_Renderer *renderer)
 {
-    /* Background */
     if (g->background)
         SDL_RenderCopy(renderer, g->background, &g->camera, NULL);
     else {
@@ -48,7 +44,6 @@ void renderGame(Game *g, SDL_Renderer *renderer)
         SDL_RenderClear(renderer);
     }
 
-    /* Static platforms */
     for (int i = 0; i < g->nbPlatforms; i++) {
         GamePlatform *p = &g->platforms[i];
         SDL_Rect dest = {
@@ -57,9 +52,9 @@ void renderGame(Game *g, SDL_Renderer *renderer)
             p->rect.w,
             p->rect.h
         };
-        if (p->texture) {
+        if (p->texture)
             SDL_RenderCopy(renderer, p->texture, NULL, &dest);
-        } else {
+        else {
             SDL_SetRenderDrawColor(renderer, 80, 180, 80, 255);
             SDL_RenderFillRect(renderer, &dest);
         }
@@ -78,7 +73,7 @@ void renderTimer(Game *g, SDL_Renderer *renderer)
     SDL_Surface *surf = TTF_RenderText_Solid(g->font, txt, white);
     if (!surf) return;
     SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
-    SDL_Rect pos     = {800 / 2 - surf->w / 2, 8, surf->w, surf->h};
+    SDL_Rect pos = {800 / 2 - surf->w / 2, 8, surf->w, surf->h};
     SDL_RenderCopy(renderer, tex, NULL, &pos);
     SDL_FreeSurface(surf);
     SDL_DestroyTexture(tex);

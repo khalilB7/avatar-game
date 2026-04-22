@@ -9,7 +9,7 @@
 
 typedef struct {
     SDL_Rect     rect;
-    int          type;        /* 0 = static, 1 = P1, 2 = P2 */
+    int          type;        
     SDL_Texture *texture;
 } GamePlatform;
 
@@ -31,4 +31,4 @@ void renderGame(Game *g, SDL_Renderer *renderer);
 void renderTimer(Game *g, SDL_Renderer *renderer);
 void freeGame(Game *g);
 
-#endif /* GAME_H */
+#endif 

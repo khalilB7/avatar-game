@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-/* ------------------------------------------------------------------ helpers */
+
 
 static void setState(Hero *hero, State newState)
 {
@@ -24,7 +24,6 @@ static void setState(Hero *hero, State newState)
     hero->frameRect.x = 0;
 }
 
-/* Clamp position to world boundaries */
 static void clampPosition(Hero *hero, int worldW, int worldH)
 {
     if (hero->posHero.x < 0)
@@ -37,16 +36,15 @@ static void clampPosition(Hero *hero, int worldW, int worldH)
         hero->posHero.y = worldH - hero->frameHeight;
 }
 
-/* Advance sprite animation one frame */
 static void advanceAnim(Hero *hero)
 {
     hero->frameTimer++;
     if (hero->frameTimer < hero->frameDelay) return;
     hero->frameTimer = 0;
 
-    int loop = (hero->state == STATE_IDLE  ||
-                hero->state == STATE_WALK  ||
-                hero->state == STATE_DASH  ||
+    int loop = (hero->state == STATE_IDLE ||
+                hero->state == STATE_WALK ||
+                hero->state == STATE_DASH ||
                 hero->state == STATE_JUMP);
 
     if (loop) {
@@ -58,7 +56,6 @@ static void advanceAnim(Hero *hero)
     hero->frameRect.x = hero->currentFrame * hero->frameWidth;
 }
 
-/* ------------------------------------------------------------------ public */
 
 void initializePlayer(Hero *hero, int id, SDL_Renderer *renderer)
 {
@@ -68,19 +65,15 @@ void initializePlayer(Hero *hero, int id, SDL_Renderer *renderer)
     hero->frameWidth  = 128;
     hero->frameHeight = 128;
 
-    /* Stagger starting positions */
+    
     hero->posHero.x = 100 + (id - 1) * 300;
-    hero->posHero.y = SCREEN_HEIGHT - hero->frameHeight - 50;
+    hero->posHero.y = SCREEN_HEIGHT - hero->frameHeight;
     hero->posHero.w = hero->frameWidth;
     hero->posHero.h = hero->frameHeight;
 
-    /* Load sprites */
-    const char *pathR = (id == 1)
-        ? "/home/khalil/the game/images/soldierR.png"
-        : "/home/khalil/the game/images/C1R.png";
-    const char *pathL = (id == 1)
-        ? "/home/khalil/the game/images/soldierL.png"
-        : "/home/khalil/the game/images/C1L.png";
+    
+    const char *pathR = (id == 1) ? "/home/khalil/op/avatar-game-khalilB7-version2/strengh and wisdom/avatar-game-khalilB7-version2/the game/images/soldierR.png" : "/home/khalil/op/avatar-game-khalilB7-version2/strengh and wisdom/avatar-game-khalilB7-version2/the game/images/C1R.png";
+    const char *pathL = (id == 1) ? "/home/khalil/op/avatar-game-khalilB7-version2/strengh and wisdom/avatar-game-khalilB7-version2/the game/images/soldierL.png" : "/home/khalil/op/avatar-game-khalilB7-version2/strengh and wisdom/avatar-game-khalilB7-version2/the game/images/C1L.png";
 
     SDL_Surface *sr = IMG_Load(pathR);
     SDL_Surface *sl = IMG_Load(pathL);
@@ -89,12 +82,11 @@ void initializePlayer(Hero *hero, int id, SDL_Renderer *renderer)
     if (sr) SDL_FreeSurface(sr);
     if (sl) SDL_FreeSurface(sl);
 
-    /* Health icon */
-    SDL_Surface *hi = IMG_Load("/home/khalil/the game/images/Icon12.png");
+    SDL_Surface *hi = IMG_Load("/home/khalil/op/avatar-game-khalilB7-version2/strengh and wisdom/avatar-game-khalilB7-version2/the game/images/Icon12.png");
     hero->healthIcon = hi ? SDL_CreateTextureFromSurface(renderer, hi) : NULL;
     if (hi) SDL_FreeSurface(hi);
 
-    /* Initial state */
+    // Initial animation state 
     hero->dir        = DIR_RIGHT;
     hero->state      = STATE_IDLE;
     hero->maxFrames  = FRAMES_IDLE;
@@ -103,10 +95,16 @@ void initializePlayer(Hero *hero, int id, SDL_Renderer *renderer)
 
     hero->lives       = MAX_LIVES;
     hero->shootFrames = FRAMES_SHOOT;
+    hero->scoreActive = 0;   
 
-    /* Default bounds = full window; call setHeroBounds() to override */
+    // Default world boundary 
     hero->worldW = SCREEN_WIDTH;
     hero->worldH = SCREEN_HEIGHT;
+}
+
+void setState_public(Hero *hero, State newState)
+{
+    setState(hero, newState);
 }
 
 void freePlayer(Hero *hero)
@@ -116,39 +114,37 @@ void freePlayer(Hero *hero)
     if (hero->healthIcon)       SDL_DestroyTexture(hero->healthIcon);
 }
 
-/* Call this whenever the number of players changes to update viewport bounds */
 void setHeroBounds(Hero *hero, int w, int h)
 {
     hero->worldW = w;
     hero->worldH = h;
-    /* Re-clamp current position immediately */
-    if (hero->posHero.x < 0)               hero->posHero.x = 0;
-    if (hero->posHero.y < 0)               hero->posHero.y = 0;
-    if (hero->posHero.x > w - hero->frameWidth)  hero->posHero.x = w - hero->frameWidth;
-    if (hero->posHero.y > h - hero->frameHeight) hero->posHero.y = h - hero->frameHeight;
+    
+    if (hero->posHero.x < 0)                          hero->posHero.x = 0;
+    if (hero->posHero.y < 0)                          hero->posHero.y = 0;
+    if (hero->posHero.x > w - hero->frameWidth)       hero->posHero.x = w - hero->frameWidth;
+    if (hero->posHero.y > h - hero->frameHeight)      hero->posHero.y = h - hero->frameHeight;
 }
 
-/* ------------------------------------------------------------------ update */
-
+ 
 void moveHero(Hero *hero)
 {
     const int speed  = 5;
     const int worldW = hero->worldW;
     const int worldH = hero->worldH;
 
-    /* Decrement cooldowns */
+    /* Tick cooldowns */
     if (hero->shootCooldown > 0) hero->shootCooldown--;
-    if (hero->invTimer > 0)      hero->invTimer--;
-    if (hero->invTimer == 0)     hero->invincible = 0;
+    if (hero->invTimer      > 0) hero->invTimer--;
+    if (hero->invTimer     == 0) hero->invincible = 0;
 
-    /* Dead: freeze on last frame, no movement */
+    //Dead 
     if (hero->dead) {
         setState(hero, STATE_DEAD);
         advanceAnim(hero);
         return;
     }
 
-    /* Hurt: slide back briefly, then recover */
+    // Hurt 
     if (hero->state == STATE_HURT) {
         hero->hurtTimer--;
         if (hero->hurtTimer <= 0)
@@ -157,7 +153,7 @@ void moveHero(Hero *hero)
         return;
     }
 
-    /* Dash: fast horizontal burst */
+    // Dash 
     if (hero->state == STATE_DASH) {
         const int dashSpeed = 15;
         hero->posHero.x += (hero->dir == DIR_RIGHT) ? dashSpeed : -dashSpeed;
@@ -169,22 +165,24 @@ void moveHero(Hero *hero)
         return;
     }
 
-    /* Jump: simple arc using vertical velocity */
+    // Jump 
     if (hero->state == STATE_JUMP) {
         hero->posHero.y += (int)hero->jumpVy;
-        hero->jumpVy    += 1.2f;          /* gravity */
-        clampPosition(hero, worldW, worldH);
+        hero->jumpVy    += 1.2f;   /* gravity */
+        int groundY = hero->worldH - hero->frameHeight;
+        if (hero->posHero.y < 0) hero->posHero.y = 0;
+        if (hero->posHero.x < 0) hero->posHero.x = 0;
+        if (hero->posHero.x > worldW - hero->frameWidth) hero->posHero.x = worldW - hero->frameWidth;
         hero->jumpTime--;
-        /* Land when timer runs out OR feet hit the ground */
-        if (hero->jumpTime <= 0 || hero->posHero.y >= worldH - hero->frameHeight) {
-            hero->posHero.y = worldH - hero->frameHeight;
+        if (hero->jumpTime <= 0 || hero->posHero.y >= groundY) {
+            hero->posHero.y = groundY;
             setState(hero, STATE_IDLE);
         }
         advanceAnim(hero);
         return;
     }
 
-    /* Shoot animation finishes then returns to idle/walk */
+    // Shoot animation 
     if (hero->state == STATE_SHOOT) {
         hero->shootAnimTimer--;
         if (hero->shootAnimTimer <= 0) {
@@ -197,14 +195,14 @@ void moveHero(Hero *hero)
         return;
     }
 
-    /* Normal movement */
+    // Normal walking , idle 
     int moving = hero->moveLeft || hero->moveRight || hero->moveUp || hero->moveDown;
     if (moving) {
         setState(hero, STATE_WALK);
         if (hero->moveLeft)  { hero->posHero.x -= speed; hero->dir = DIR_LEFT;  }
         if (hero->moveRight) { hero->posHero.x += speed; hero->dir = DIR_RIGHT; }
-        if (hero->moveUp)    hero->posHero.y -= speed;
-        if (hero->moveDown)  hero->posHero.y += speed;
+        if (hero->moveUp)      hero->posHero.y -= speed;
+        if (hero->moveDown)    hero->posHero.y += speed;
         clampPosition(hero, worldW, worldH);
     } else {
         setState(hero, STATE_IDLE);
@@ -213,18 +211,18 @@ void moveHero(Hero *hero)
     advanceAnim(hero);
 }
 
-/* ------------------------------------------------------------------ render */
+// Rendering
+ 
 
 void showPlayer(SDL_Renderer *renderer, Hero *hero, int camX, int camY)
 {
-    /* Blink during invincibility */
+    /* Blink during invincibility frames */
     if (hero->invincible && (hero->invTimer % 6 < 3)) return;
 
     SDL_Texture *sheet = (hero->dir == DIR_RIGHT)
                          ? hero->spriteSheetRight
                          : hero->spriteSheetLeft;
 
-    /* Fallback: draw a coloured rectangle if textures are missing */
     SDL_Rect dest = {
         hero->posHero.x - camX,
         hero->posHero.y - camY,
@@ -233,10 +231,11 @@ void showPlayer(SDL_Renderer *renderer, Hero *hero, int camX, int camY)
     };
 
     if (!sheet) {
+        
         SDL_SetRenderDrawColor(renderer,
-            hero->id == 1 ? 80  : 220,
-            hero->id == 1 ? 140 : 80,
-            hero->id == 1 ? 240 : 80,
+            hero->id == 1 ?  80 : 220,
+            hero->id == 1 ? 140 :  80,
+            hero->id == 1 ? 240 :  80,
             255);
         SDL_RenderFillRect(renderer, &dest);
         return;
@@ -245,49 +244,12 @@ void showPlayer(SDL_Renderer *renderer, Hero *hero, int camX, int camY)
     SDL_RenderCopy(renderer, sheet, &hero->frameRect, &dest);
 }
 
-/* ------------------------------------------------------------------ bullets */
-
-void shoot(Hero *hero)
-{
-    if (hero->shootCooldown > 0 || hero->dead) return;
-
-    for (int i = 0; i < MAX_BULLETS; i++) {
-        if (!hero->bullets[i].active) {
-            Bullet *b   = &hero->bullets[i];
-            b->active   = 1;
-            b->y        = hero->posHero.y + hero->frameHeight / 2.0f - 2.5f;
-            b->dir      = hero->dir;
-            b->vx       = (hero->dir == DIR_RIGHT) ? 12.0f : -12.0f;
-            b->x        = (hero->dir == DIR_RIGHT)
-                          ? hero->posHero.x + hero->frameWidth
-                          : hero->posHero.x - 10;
-
-            hero->shootCooldown  = 15;
-            setState(hero, STATE_SHOOT);
-            hero->shootAnimTimer = hero->frameDelay * hero->shootFrames;
-            break;
-        }
-    }
-}
-
-void updateBullets(Hero *hero)
-{
-    for (int i = 0; i < MAX_BULLETS; i++) {
-        if (!hero->bullets[i].active) continue;
-        hero->bullets[i].x += hero->bullets[i].vx;
-        /* Deactivate when off screen */
-        if (hero->bullets[i].x < -20 || hero->bullets[i].x > SCREEN_WIDTH + 20)
-            hero->bullets[i].active = 0;
-    }
-}
-
 void drawBullets(Hero *hero, SDL_Renderer *renderer, int camX, int camY)
 {
-    /* Colour-coded bullets per player */
     if (hero->id == 1)
-        SDL_SetRenderDrawColor(renderer, 255, 230, 0,   255);
+        SDL_SetRenderDrawColor(renderer, 255, 230,  0, 255);
     else
-        SDL_SetRenderDrawColor(renderer, 255, 100, 30,  255);
+        SDL_SetRenderDrawColor(renderer, 255, 100, 30, 255);
 
     for (int i = 0; i < MAX_BULLETS; i++) {
         if (!hero->bullets[i].active) continue;
@@ -300,55 +262,12 @@ void drawBullets(Hero *hero, SDL_Renderer *renderer, int camX, int camY)
     }
 }
 
-void checkBulletHit(Hero *attacker, Hero *target)
-{
-    if (target->dead || target->invincible) return;
-
-    for (int i = 0; i < MAX_BULLETS; i++) {
-        if (!attacker->bullets[i].active) continue;
-
-        SDL_Rect bullet = {
-            (int)attacker->bullets[i].x, (int)attacker->bullets[i].y, 12, 5
-        };
-        SDL_Rect tRect = {
-            target->posHero.x + 16, target->posHero.y + 16,   /* shrink hitbox */
-            target->frameWidth - 32, target->frameHeight - 24
-        };
-
-        if (SDL_HasIntersection(&bullet, &tRect)) {
-            attacker->bullets[i].active = 0;
-            takeDamage(target);
-            if (target->dead)
-                addKillScore(attacker);
-        }
-    }
-}
-
-/* ------------------------------------------------------------------ damage */
-
-void takeDamage(Hero *hero)
-{
-    if (hero->dead || hero->invincible) return;
-    hero->lives--;
-    if (hero->lives <= 0) {
-        hero->lives = 0;
-        hero->dead  = 1;
-        setState(hero, STATE_DEAD);
-        return;
-    }
-    setState(hero, STATE_HURT);
-    hero->hurtTimer  = 20;
-    hero->invincible = 1;
-    hero->invTimer   = 60;   /* ~1 second of invincibility */
-}
-
-/* ------------------------------------------------------------------ HUD */
-
-void drawHUD(Hero *hero, SDL_Renderer *renderer, TTF_Font *font, int offsetX, int offsetY)
+void drawHUD(Hero *hero, SDL_Renderer *renderer, TTF_Font *font,
+             int offsetX, int offsetY)
 {
     if (!font) return;
 
-    /* Player label */
+    // Player label 
     char label[4];
     sprintf(label, "P%d", hero->id);
     SDL_Color nameColor = (hero->id == 1)
@@ -364,28 +283,27 @@ void drawHUD(Hero *hero, SDL_Renderer *renderer, TTF_Font *font, int offsetX, in
         SDL_DestroyTexture(nt);
     }
 
-    /* Lives (hearts or icons) */
+    // Life icons
     int iconSize    = 24;
-    int iconPadding = 4;
+    int iconPadding =  4;
     int heartX      = offsetX + 40;
-    int heartY      = offsetY + 2;
+    int heartY      = offsetY +  2;
 
     for (int i = 0; i < hero->lives; i++) {
         SDL_Rect pos = {heartX + i * (iconSize + iconPadding), heartY, iconSize, iconSize};
         if (hero->healthIcon) {
             SDL_RenderCopy(renderer, hero->healthIcon, NULL, &pos);
         } else {
-            /* Fallback: red square */
             SDL_SetRenderDrawColor(renderer, 220, 40, 40, 255);
             SDL_RenderFillRect(renderer, &pos);
         }
     }
 
-    /* Score */
+    // Score 
     char scoreText[32];
     sprintf(scoreText, "Score: %d", hero->score);
     SDL_Color sc = (hero->id == 1)
-        ? (SDL_Color){80, 200, 255, 255}
+        ? (SDL_Color){ 80, 200, 255, 255}
         : (SDL_Color){255, 140,  50, 255};
 
     SDL_Surface *ss = TTF_RenderText_Solid(font, scoreText, sc);
@@ -398,11 +316,99 @@ void drawHUD(Hero *hero, SDL_Renderer *renderer, TTF_Font *font, int offsetX, in
     }
 }
 
-/* ------------------------------------------------------------------ score */
+// Bullets
+ 
+
+void shoot(Hero *hero)
+{
+    if (hero->shootCooldown > 0 || hero->dead) return;
+
+    for (int i = 0; i < MAX_BULLETS; i++) {
+        if (!hero->bullets[i].active) {
+            Bullet *b = &hero->bullets[i];
+            b->active = 1;
+            b->y      = hero->posHero.y + hero->frameHeight / 2.0f - 2.5f;
+            b->dir    = hero->dir;
+            b->vx     = (hero->dir == DIR_RIGHT) ?  12.0f : -12.0f;
+            b->x      = (hero->dir == DIR_RIGHT)
+                        ? (float)(hero->posHero.x + hero->frameWidth)
+                        : (float)(hero->posHero.x - 10);
+
+            hero->shootCooldown  = 15;
+            setState(hero, STATE_SHOOT);
+            hero->shootAnimTimer = hero->frameDelay * hero->shootFrames;
+            break;
+        }
+    }
+}
+
+void updateBullets(Hero *hero)
+{
+    for (int i = 0; i < MAX_BULLETS; i++) {
+        if (!hero->bullets[i].active) continue;
+        hero->bullets[i].x += hero->bullets[i].vx;
+        if (hero->bullets[i].x < -50.0f ||
+            hero->bullets[i].x > (float)(hero->worldW + 50))
+            hero->bullets[i].active = 0;
+    }
+}
+
+void checkBulletHit(Hero *attacker, Hero *target)
+{
+    if (target->dead || target->invincible) return;
+
+    for (int i = 0; i < MAX_BULLETS; i++) {
+        if (!attacker->bullets[i].active) continue;
+
+        SDL_Rect bullet = {
+            (int)attacker->bullets[i].x,
+            (int)attacker->bullets[i].y,
+            12, 5
+        };
+        SDL_Rect tRect = {
+            target->posHero.x + 16,
+            target->posHero.y + 16,
+            target->frameWidth  - 32,
+            target->frameHeight - 24
+        };
+
+        if (SDL_HasIntersection(&bullet, &tRect)) {
+            attacker->bullets[i].active = 0;
+            takeDamage(target);
+            if (target->dead)
+                addKillScore(attacker);
+        }
+    }
+}
+
+
+ //Damage
+ 
+
+void takeDamage(Hero *hero)
+{
+    if (hero->dead || hero->invincible) return;
+
+    hero->lives--;
+    if (hero->lives <= 0) {
+        hero->lives = 0;
+        hero->dead  = 1;
+        setState(hero, STATE_DEAD);
+        return;
+    }
+    setState(hero, STATE_HURT);
+    hero->hurtTimer  = 20;
+    hero->invincible = 1;
+    hero->invTimer   = 60;   /* ~1 second at 60 fps */
+}
+
+
+ // Score
+
 
 void updateScore(Hero *hero)
 {
-    if (hero->dead) return;
+    if (hero->dead || !hero->scoreActive) return;
     hero->scoreTimer++;
     if (hero->scoreTimer >= 60) {
         hero->scoreTimer = 0;
@@ -412,5 +418,5 @@ void updateScore(Hero *hero)
 
 void addKillScore(Hero *hero)
 {
-    hero->score += 20;
+    hero->score += 25;
 }
