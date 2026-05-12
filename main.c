@@ -1,100 +1,85 @@
-#include "enemy.h"
-#include <stdlib.h>
-#include <time.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#include <stdio.h>
 
-int main() {
+typedef enum { MENU_OPTIONS, MENU_SAUVEGARDE } EtatMenu;
+
+int main(int argc, char* argv[]) {
     SDL_Init(SDL_INIT_VIDEO);
-    IMG_Init(IMG_INIT_PNG);
+    IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG);
 
-    SDL_Window *win = SDL_CreateWindow("Mummy Enemy",
-        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, 0);
-    SDL_Renderer *ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
+    SDL_Window* window = SDL_CreateWindow("Avatar System", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1000, 562, 0);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-    srand(time(NULL));
+    // Thabbet f-asemi el tsawer f-dossier assets/
+    SDL_Texture* texOptions = IMG_LoadTexture(renderer, "photo2.png");
+    SDL_Texture* texSauvegarde = IMG_LoadTexture(renderer, "photo1.png");
 
-    Enemy mummy = {300, 408, 72, 72, 0, 8, 0, 3, 0, 0};
-    Player player = {100, 408, 64, 64, 3};
-    Item bonus = {400, 448, 32, 32};
+    if (!texOptions || !texSauvegarde) {
+        printf("ERREUR: Mal9itech el tsawer! Thabbet f-dossier assets.\n");
+        return 1;
+    }
 
-    SDL_Surface *surf;
+    // --- Coordonnées Rectangles (Hathom lezem ykounou kbar bech l-mouse t-captihom) ---
+    // Options: Bouton RETOUR louta 3al issar
+    SDL_Rect btnVersSave = {20, 450, 250, 100}; 
+    // Sauvegarde: Bouton RETOUR fil west louta
+    SDL_Rect btnVersOptions = {350, 450, 300, 100};
 
-    // Load movement frames
-    surf = IMG_Load("left.png");  mummy.framesRight[0] = SDL_CreateTextureFromSurface(ren, surf); SDL_FreeSurface(surf);
-    surf = IMG_Load("right.png"); mummy.framesRight[1] = SDL_CreateTextureFromSurface(ren, surf); SDL_FreeSurface(surf);
-    surf = IMG_Load("up.png");    mummy.framesRight[2] = SDL_CreateTextureFromSurface(ren, surf); SDL_FreeSurface(surf);
-
-    // Attack frame
-    surf = IMG_Load("down.png");  mummy.attack = SDL_CreateTextureFromSurface(ren, surf); SDL_FreeSurface(surf);
-
-    // Death animation
-    surf = IMG_Load("dead.png"); mummy.deathFrames[0] = SDL_CreateTextureFromSurface(ren, surf); SDL_FreeSurface(surf);
-    surf = IMG_Load("dead.png"); mummy.deathFrames[1] = SDL_CreateTextureFromSurface(ren, surf); SDL_FreeSurface(surf);
-    surf = IMG_Load("dead.png"); mummy.deathFrames[2] = SDL_CreateTextureFromSurface(ren, surf); SDL_FreeSurface(surf);
-
-    int running = 1; SDL_Event e;
+    EtatMenu etatActuel = MENU_OPTIONS;
+    int running = 1;
+    SDL_Event event;
 
     while (running) {
-        while (SDL_PollEvent(&e)) if (e.type == SDL_QUIT) running = 0;
+        // 1. Gérer les inputs
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) running = 0;
 
-        updateEnemy(&mummy, &player);
+            if (event.type == SDL_MOUSEBUTTONDOWN) {
+                int mx = event.button.x;
+                int my = event.button.y;
+                SDL_Point p = {mx, my};
 
-        SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
-        SDL_RenderClear(ren);
-
-        SDL_Rect playerRect = {player.x, player.y, player.w, player.h};
-        SDL_SetRenderDrawColor(ren, 255, 0, 0, 255);
-        SDL_RenderFillRect(ren, &playerRect);
-
-        // Player health bar
-        SDL_Rect playerHealthBar = {20, 20, player.health * 40, 10};
-        SDL_SetRenderDrawColor(ren, 0, 255, 0, 255);
-        SDL_RenderFillRect(ren, &playerHealthBar);
-
-        // Item
-        SDL_Rect itemRect = {bonus.x, bonus.y, bonus.w, bonus.h};
-        SDL_SetRenderDrawColor(ren, 0, 255, 0, 255);
-        SDL_RenderFillRect(ren, &itemRect);
-
-        SDL_Rect enemyRect = {mummy.x, mummy.y, mummy.w, mummy.h};
-
-        // Item pickup
-        if (checkCollision(playerRect, itemRect)) {
-            player.health++;
-            bonus.x = -100;
+                if (etatActuel == MENU_OPTIONS) {
+                    // Ken d9at louta 3al issar f-el Options
+                    if (SDL_PointInRect(&p, &btnVersSave)) {
+                        printf("Passage vers SAUVEGARDE...\n");
+                        etatActuel = MENU_SAUVEGARDE;
+                    }
+                } 
+                else if (etatActuel == MENU_SAUVEGARDE) {
+                    // Ken d9at fil west louta f-el Sauvegarde
+                    if (SDL_PointInRect(&p, &btnVersOptions)) {
+                        printf("Retour vers OPTIONS...\n");
+                        etatActuel = MENU_OPTIONS;
+                    }
+                }
+            }
         }
 
-        // Enemy rendering
-        if (mummy.isDead) {
-            SDL_RenderCopyEx(ren, mummy.deathFrames[mummy.deathFrame], NULL, &enemyRect,
-                             0, NULL, SDL_FLIP_NONE);
-        } else if (checkCollision(playerRect, enemyRect)) {
-            SDL_RenderCopyEx(ren, mummy.attack, NULL, &enemyRect,
-                             0, NULL, (mummy.dx < 0) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
-            player.health--;
-            if (player.health <= 0) running = 0;
+        // 2. RENDERING (Hna el s7i7: dima n-warriw el taswira 3la 7asb l-etat)
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+
+        if (etatActuel == MENU_OPTIONS) {
+            SDL_RenderCopy(renderer, texOptions, NULL, NULL);
+            // Ken t7eb tchouf el blasa mta3 el bouton (Rectangle a7mer) bech t-thabbet:
+            // SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+            // SDL_RenderDrawRect(renderer, &btnVersSave);
         } else {
-            SDL_RenderCopyEx(ren, mummy.framesRight[mummy.frame], NULL, &enemyRect,
-                             0, NULL, (mummy.dx < 0) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
+            SDL_RenderCopy(renderer, texSauvegarde, NULL, NULL);
+            // SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+            // SDL_RenderDrawRect(renderer, &btnVersOptions);
         }
 
-        // Enemy health bar
-        SDL_Rect enemyHealthBar = {mummy.x, mummy.y - 10, mummy.health * 20, 5};
-        SDL_SetRenderDrawColor(ren, 0, 0, 255, 255);
-        SDL_RenderFillRect(ren, &enemyHealthBar);
-
-        SDL_RenderPresent(ren);
-        SDL_Delay(100);
+        SDL_RenderPresent(renderer);
+        SDL_Delay(16); 
     }
 
-    // Cleanup textures
-    for (int i = 0; i < FRAME_COUNT; i++) {
-        SDL_DestroyTexture(mummy.framesRight[i]);
-        SDL_DestroyTexture(mummy.deathFrames[i]);
-    }
-    SDL_DestroyTexture(mummy.attack);
-
-    SDL_DestroyRenderer(ren);
-    SDL_DestroyWindow(win);
+    SDL_DestroyTexture(texOptions);
+    SDL_DestroyTexture(texSauvegarde);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
     IMG_Quit();
     SDL_Quit();
     return 0;
